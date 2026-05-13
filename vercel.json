@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Détecteur de Désinformation</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#090909;color:#e5e5e5;font-family:Georgia,serif;min-height:100vh;padding-bottom:40px}
+  a{color:#818cf8}
+
+  /* Header */
+  .header{border-bottom:1px solid #1a1a1a;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
+  .header-sub{font-size:10px;letter-spacing:5px;color:#444;text-transform:uppercase}
+  .header-title{font-size:18px;color:#fff;margin-top:2px}
+  .header-title span{color:#e11d48;font-style:italic}
+  .badge{background:#0d1f0d;border:1px solid #22c55e33;border-radius:3px;padding:3px 10px;font-size:11px;color:#22c55e;font-family:monospace}
+
+  /* API key setup */
+  .setup-box{max-width:600px;margin:40px auto;padding:0 16px}
+  .setup-card{background:#111;border:1px solid #2a2a2a;border-radius:6px;padding:24px}
+  .setup-card h2{font-size:16px;color:#fff;font-weight:normal;margin-bottom:8px}
+  .setup-card p{font-size:13px;color:#666;line-height:1.7;margin-bottom:16px}
+  .setup-steps{font-size:12px;color:#555;line-height:2;margin-bottom:20px;padding-left:4px}
+  .setup-steps a{color:#818cf8}
+  .api-input-wrap{display:flex;gap:8px}
+  .api-input{flex:1;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:4px;color:#ccc;font-size:13px;padding:10px 12px;font-family:monospace;outline:none}
+  .api-input:focus{border-color:#e11d48}
+  .btn-primary{background:#e11d48;border:none;border-radius:4px;color:#fff;font-size:12px;padding:10px 16px;cursor:pointer;letter-spacing:1px;white-space:nowrap;font-family:Georgia,serif}
+  .btn-primary:hover{background:#c01040}
+  .btn-primary:disabled{background:#1a1a1a;cursor:not-allowed;opacity:0.5}
+
+  /* Nav */
+  .nav{display:flex;border-bottom:1px solid #1a1a1a;padding-left:20px;overflow-x:auto}
+  .nav-btn{background:none;border:none;border-bottom:2px solid transparent;color:#555;padding:12px 16px;cursor:pointer;font-size:12px;letter-spacing:1px;font-family:Georgia,serif;white-space:nowrap;transition:all .15s}
+  .nav-btn.active{border-bottom-color:#e11d48;color:#fff}
+
+  /* Main */
+  .main{max-width:740px;margin:0 auto;padding:24px 16px}
+
+  /* Mode toggle */
+  .mode-toggle{display:flex;gap:8px;margin-bottom:16px}
+  .mode-btn{flex:1;padding:10px 0;background:transparent;border:1px solid #222;border-radius:4px;color:#555;font-size:12px;cursor:pointer;font-family:Georgia,serif;transition:all .15s}
+  .mode-btn.active{background:#1a1a1a;border-color:#e11d48;color:#fff}
+
+  /* Textarea */
+  .input-box{background:#111;border:1px solid #1e1e1e;border-radius:4px;overflow:hidden;margin-bottom:12px}
+  .input-header{padding:8px 14px;border-bottom:1px solid #1a1a1a;display:flex;justify-content:space-between;font-size:10px;color:#444;letter-spacing:3px;text-transform:uppercase}
+  textarea{width:100%;min-height:150px;background:transparent;border:none;outline:none;color:#ccc;font-size:13px;padding:14px;resize:vertical;font-family:Georgia,serif;line-height:1.8}
+
+  /* Image drop */
+  .drop-zone{border:2px dashed #2a2a2a;border-radius:4px;padding:40px 20px;text-align:center;cursor:pointer;background:#0d0d0d;transition:all .2s;margin-bottom:12px}
+  .drop-zone.drag{border-color:#e11d48;background:#1a0008}
+  .drop-zone .icon{font-size:36px;margin-bottom:8px}
+  .drop-zone p{color:#555;font-size:13px}
+  .drop-zone small{color:#333;font-size:11px;margin-top:4px;display:block}
+  .img-preview{background:#111;border:1px solid #1e1e1e;border-radius:4px;overflow:hidden;margin-bottom:12px}
+  .img-preview img{width:100%;max-height:280px;object-fit:contain;display:block;background:#0a0a0a}
+  .img-preview-footer{padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#555}
+  .btn-clear{background:none;border:1px solid #2a2a2a;border-radius:3px;color:#ef4444;font-size:11px;padding:3px 8px;cursor:pointer}
+
+  /* Error */
+  .error-box{background:#1c0000;border:1px solid #ef444455;border-radius:4px;padding:10px 14px;margin-bottom:10px;color:#ef4444;font-size:12px;line-height:1.6;word-break:break-word}
+  details summary{color:#666;font-size:11px;cursor:pointer;margin-top:6px}
+  details pre{color:#555;font-size:10px;margin-top:6px;white-space:pre-wrap;word-break:break-word;font-family:monospace}
+
+  /* Analyze button */
+  .btn-analyze{width:100%;padding:13px;background:#e11d48;border:none;border-radius:4px;color:#fff;font-size:13px;cursor:pointer;letter-spacing:2px;text-transform:uppercase;font-family:Georgia,serif;transition:all .2s}
+  .btn-analyze:disabled{background:#1a1a1a;cursor:not-allowed}
+
+  /* Results */
+  .result-section{margin-top:24px;animation:fadeIn .4s ease}
+  .info-row{background:#0d0d0d;border:1px solid #1e1e1e;border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#666}
+
+  /* AI detection */
+  .ai-card{border-radius:4px;padding:16px;margin-bottom:12px}
+  .ai-card.is-ai{background:#12060a;border:1px solid #ef444444}
+  .ai-card.not-ai{background:#060f0a;border:1px solid #22c55e44}
+  .ai-header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .ai-label{font-size:10px;color:#555;letter-spacing:3px;text-transform:uppercase}
+  .ai-verdict{font-size:16px;font-weight:bold;margin-top:2px}
+  .score-ring-wrap{text-align:center}
+  .score-ring-label{font-size:10px;color:#555;margin-top:2px}
+  .gen-box{background:#0d0d0d;border-radius:4px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+  .gen-name{font-size:15px;font-weight:bold}
+  .gen-co{font-size:10px;color:#444;margin-top:1px}
+  .ai-expl{color:#999;font-size:12px;line-height:1.7;margin:0 0 8px;font-style:italic}
+  .indices{display:flex;flex-wrap:wrap;gap:5px}
+
+  /* Verdict card */
+  .verdict-card{border-radius:4px;padding:14px 18px;margin-bottom:12px;display:flex;align-items:center;gap:14px}
+  .verdict-icon{font-size:32px}
+  .verdict-label{font-size:10px;color:#555;letter-spacing:3px;text-transform:uppercase}
+  .verdict-text{font-size:18px;font-weight:bold}
+  .score-block{margin-left:auto;text-align:right}
+  .score-num{font-size:26px;font-weight:bold;font-family:monospace}
+  .score-denom{font-size:11px;color:#555}
+  .score-sub{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:2px}
+
+  /* Bias bar */
+  .bias-card{background:#111;border:1px solid #1e1e1e;border-radius:4px;padding:14px;margin-bottom:12px}
+  .bias-header{display:flex;justify-content:space-between;margin-bottom:8px;font-size:10px;color:#555;letter-spacing:3px;text-transform:uppercase}
+  .bias-orient{font-size:12px}
+  .bias-track{position:relative;height:8px;border-radius:4px;background:linear-gradient(to right,#3b82f6,#6ee7b7,#ef4444)}
+  .bias-dot{position:absolute;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;border:2px solid #000}
+  .bias-labels{display:flex;justify-content:space-between;font-size:10px;color:#444;margin-bottom:4px}
+
+  /* Content cards */
+  .card{background:#111;border:1px solid #1e1e1e;border-radius:4px;padding:14px;margin-bottom:12px}
+  .card-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px}
+  .card p{color:#bbb;font-size:13px;line-height:1.8;margin:0;font-style:italic}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .list-item{font-size:12px;color:#ccc;line-height:1.7;border-bottom:1px solid #1a1a1a;padding-bottom:3px;margin-bottom:3px}
+  .empty{font-size:12px;color:#333}
+  .techniques-card{background:#111;border:1px solid #f9731633;border-radius:4px;padding:12px;margin-bottom:12px}
+
+  /* Tag */
+  .tag{background:#1a1a1a;border-radius:3px;padding:2px 7px;font-size:11px;margin-right:4px;margin-bottom:4px;display:inline-block;border:1px solid transparent}
+
+  /* Advice */
+  .advice-card{background:#0d1117;border:1px solid #1e2a1e;border-radius:4px;padding:12px;margin-bottom:14px}
+  .advice-card p{color:#aaa;font-size:12px;margin:0;line-height:1.7}
+
+  /* Feedback prompt */
+  .fb-prompt{background:#0a0a14;border:1px solid #2a2a4a;border-radius:4px;padding:10px;text-align:center;font-size:11px;color:#444}
+  .btn-link{background:none;border:1px solid #333;border-radius:3px;color:#666;font-size:11px;padding:5px 14px;cursor:pointer;margin-top:6px;font-family:Georgia,serif}
+
+  /* Feedback tab */
+  .fb-card{background:#111;border:1px solid #1e1e1e;border-radius:4px;padding:14px;margin-bottom:10px}
+  .fb-card-row{display:flex;justify-content:space-between;gap:10px}
+  .tags-row{display:flex;gap:5px;margin-bottom:6px;flex-wrap:wrap}
+  .snippet{font-size:12px;color:#777;line-height:1.6}
+  .date{font-size:10px;color:#333;margin-top:4px}
+  .thumb-row{display:flex;gap:5px}
+  .btn-up{background:#0d1f0d;border:1px solid #22c55e33;border-radius:3px;color:#22c55e;font-size:14px;padding:4px 10px;cursor:pointer}
+  .btn-dn{background:#1c0000;border:1px solid #ef444433;border-radius:3px;color:#ef4444;font-size:14px;padding:4px 10px;cursor:pointer}
+  .fb-form{margin-top:10px;border-top:1px solid #1e1e1e;padding-top:10px}
+  .fb-form textarea{width:100%;min-height:55px;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:3px;color:#ccc;font-size:12px;padding:8px;resize:vertical;font-family:Georgia,serif}
+  .fb-form-row{display:flex;gap:6px;margin-top:6px}
+  .fb-form select{background:#111;border:1px solid #2a2a2a;border-radius:3px;color:#777;font-size:11px;padding:5px 8px;flex:1}
+  .btn-send{background:#e11d48;border:none;border-radius:3px;color:#fff;font-size:11px;padding:5px 14px;cursor:pointer;font-family:Georgia,serif}
+
+  /* Dashboard */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+  .stat-card{background:#0d0d0d;border:1px solid #1e1e1e;border-radius:4px;padding:14px 16px}
+  .stat-val{font-size:22px;font-weight:bold;font-family:monospace}
+  .stat-label{font-size:11px;color:#888;margin-top:2px}
+  .stat-sub{font-size:10px;color:#444;margin-top:4px}
+  .verdict-bar{height:4px;background:#1a1a1a;border-radius:2px;margin-top:3px}
+  .verdict-fill{height:100%;border-radius:2px;transition:width .8s}
+
+  /* Agent */
+  .agent-card{background:#0d0d0d;border:1px solid #1e1e1e;border-radius:4px;padding:16px;margin-bottom:16px}
+  .agent-log{background:#090909;border:1px solid #1a1a1a;border-radius:3px;padding:12px;min-height:80px;margin-bottom:12px}
+  .agent-log pre{font-family:monospace;font-size:11px;color:#555;line-height:1.8;white-space:pre-wrap;margin:0}
+  .prompt-view{background:#111;border:1px solid #1e1e1e;border-radius:4px;padding:14px;margin-bottom:16px}
+  .prompt-view pre{font-family:monospace;font-size:10px;color:#444;line-height:1.7;white-space:pre-wrap;margin:0;max-height:160px;overflow:auto}
+  .improvement-card{background:#111;border:1px solid #1e1e1e;border-radius:4px;padding:12px;margin-bottom:8px}
+
+  .empty-state{background:#111;border:1px solid #1e1e1e;border-radius:4px;padding:24px;text-align:center;color:#444;font-size:13px}
+
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @media(max-width:500px){.stats-grid{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <div class="header-sub">Texte · Images · Détection IA</div>
+    <div class="header-title">🔍 Détecteur de <span>Désinformation</span></div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span class="badge" id="ver-badge">v1</span>
+    <button onclick="resetAll()" style="background:none;border:1px solid #2a2a2a;border-radius:3px;color:#444;font-size:11px;padding:3px 8px;cursor:pointer">↺ Reset</button>
+  </div>
+</div>
+
+<!-- No setup screen needed - API key is hidden on the server -->
+
+<!-- MAIN APP (shown when key is set) -->
+<div id="app-screen" style="display:none">
+  <!-- Nav -->
+  <div class="nav">
+    <button class="nav-btn active" onclick="switchTab('analyze',this)">① Analyser</button>
+    <button class="nav-btn" onclick="switchTab('feedback',this)">② Feedback</button>
+    <button class="nav-btn" onclick="switchTab('agent',this)">③ Agent IA</button>
+    <button class="nav-btn" onclick="switchTab('dashboard',this)">④ Dashboard</button>
+  </div>
+
+  <div class="main">
+
+    <!-- ── TAB: ANALYSER ─────────────────────────── -->
+    <div id="tab-analyze">
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-mode-text" onclick="setMode('text')">📝 Texte</button>
+        <button class="mode-btn" id="btn-mode-image" onclick="setMode('image')">🖼️ Image + Détection IA</button>
+      </div>
+
+      <!-- Text input -->
+      <div id="text-input-area">
+        <div class="input-box">
+          <div class="input-header">
+            <span>Article / Tweet / Déclaration</span>
+            <span id="char-count">0/3000</span>
+          </div>
+          <textarea id="main-text" maxlength="3000" placeholder="Collez votre texte ici…" oninput="document.getElementById('char-count').textContent=this.value.length+'/3000'"></textarea>
+        </div>
+      </div>
+
+      <!-- Image input -->
+      <div id="image-input-area" style="display:none">
+        <div id="drop-zone" class="drop-zone" onclick="document.getElementById('img-file').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="event.preventDefault();this.classList.remove('drag');handleImageFile(event.dataTransfer.files[0])">
+          <div class="icon">🖼️</div>
+          <p>Glissez une image ici</p>
+          <small>PNG · JPG · WEBP · Screenshot</small>
+          <input type="file" id="img-file" accept="image/*" style="display:none" onchange="handleImageFile(this.files[0])">
+        </div>
+        <div id="img-preview-area" class="img-preview" style="display:none">
+          <img id="img-preview" src="" alt="preview">
+          <div class="img-preview-footer">
+            <span id="img-name"></span>
+            <button class="btn-clear" onclick="clearImage()">✕ Changer</button>
+          </div>
+        </div>
+        <div style="background:#0a0a14;border:1px solid #2a2a4a;border-radius:4px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:#555">
+          🤖 Détecte <span style="color:#818cf8">DALL-E · Midjourney · Stable Diffusion · Gemini · Firefly</span>
+        </div>
+      </div>
+
+      <div id="error-box" class="error-box" style="display:none"></div>
+      <button class="btn-analyze" id="analyze-btn" onclick="runAnalysis()">Analyser le texte 📝</button>
+      <div id="result-area"></div>
+    </div>
+
+    <!-- ── TAB: FEEDBACK ─────────────────────────── -->
+    <div id="tab-feedback" style="display:none">
+      <div style="font-size:11px;color:#444;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px" id="fb-stats">0 analyse(s) · 0 feedback(s)</div>
+      <div id="fb-list"></div>
+    </div>
+
+    <!-- ── TAB: AGENT ────────────────────────────── -->
+    <div id="tab-agent" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px" id="agent-stats"></div>
+      <div class="agent-card">
+        <div style="font-size:10px;color:#555;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px">🤖 Agent d'amélioration</div>
+        <div class="agent-log"><pre id="agent-log-text">> En attente…</pre></div>
+        <button class="btn-analyze" id="agent-btn" onclick="runAgent()">▶ Lancer l'amélioration</button>
+      </div>
+      <div class="prompt-view">
+        <div style="font-size:10px;color:#a855f7;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px" id="prompt-label">Prompt actif — v1</div>
+        <pre id="prompt-text"></pre>
+      </div>
+      <div id="improvements-list"></div>
+    </div>
+
+    <!-- ── TAB: DASHBOARD ────────────────────────── -->
+    <div id="tab-dashboard" style="display:none">
+      <div class="stats-grid" id="dash-stats"></div>
+      <div class="card" id="dash-verdicts"></div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app-screen -->
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────
+const VERDICTS = ["VRAI","PARTIELLEMENT VRAI","TROMPEUR","FAUX","NON VÉRIFIABLE"];
+const VC = {
+  "VRAI":               {c:"#22c55e",bg:"#052e16",icon:"✓"},
+  "PARTIELLEMENT VRAI": {c:"#eab308",bg:"#1c1500",icon:"◑"},
+  "TROMPEUR":           {c:"#f97316",bg:"#1c0a00",icon:"⚠"},
+  "FAUX":               {c:"#ef4444",bg:"#1c0000",icon:"✗"},
+  "NON VÉRIFIABLE":     {c:"#a855f7",bg:"#1a0030",icon:"?"},
+};
+const AI_GEN = {
+  "DALL-E 3":         {c:"#10b981",icon:"🟢",co:"OpenAI"},
+  "ChatGPT":          {c:"#10b981",icon:"🟢",co:"OpenAI"},
+  "Midjourney":       {c:"#818cf8",icon:"🟣",co:"Midjourney"},
+  "Stable Diffusion": {c:"#f59e0b",icon:"🟡",co:"Stability AI"},
+  "Gemini":           {c:"#3b82f6",icon:"🔵",co:"Google"},
+  "Adobe Firefly":    {c:"#ef4444",icon:"🔴",co:"Adobe"},
+  "Photo réelle":     {c:"#6ee7b7",icon:"📷",co:""},
+  "Incertain":        {c:"#555",   icon:"❓",co:""},
+};
+
+const SYSTEM_PROMPT = `You are a fact-checking expert. Always respond with ONLY a valid JSON object, no markdown, no explanation. Use French for text values.
+
+For TEXT return:
+{"type":"texte","verdict":"VRAI|PARTIELLEMENT VRAI|TROMPEUR|FAUX|NON VÉRIFIABLE","score_veracite":50,"score_biais":0,"orientation":"Neutre","niveau_biais":"Faible","resume":"analysis","problemes":["item"],"fiables":["item"],"techniques":["item"],"conseil":"advice"}
+
+For IMAGE also detect AI generation:
+{"type":"image","verdict":"VRAI|PARTIELLEMENT VRAI|TROMPEUR|FAUX|NON VÉRIFIABLE","score_veracite":50,"score_biais":0,"orientation":"Neutre","niveau_biais":"Faible","resume":"analysis","problemes":["item"],"fiables":["item"],"techniques":["item"],"conseil":"advice","ia":{"est_ia":true,"score":80,"generateur":"DALL-E 3|Midjourney|Stable Diffusion|Gemini|Adobe Firefly|Photo réelle|Incertain","indices":["item"],"explication":"why"}}
+
+For any claim, always respond — use verdict NON VÉRIFIABLE rather than refusing. Output ONLY the JSON.`;
+
+let SD = { promptVersion:1, prompt:SYSTEM_PROMPT, analyses:[], feedbacks:[], improvements:[] };
+let currentMode = "text";
+let imgB64 = null;
+let imgMime = "image/jpeg";
+let fbOpen = {};
+
+// ── STORAGE ───────────────────────────────────────────────────────────────
+function loadState() {
+  try { const s=localStorage.getItem("sfc_html_v1"); if(s) SD=JSON.parse(s); } catch {}
+}
+function saveState() {
+  try { localStorage.setItem("sfc_html_v1", JSON.stringify(SD)); } catch {}
+}
+// API key is on the server — no local key needed
+function getApiKey() { return ""; }
+function saveApiKey() {}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────
+function boot() {
+  loadState();
+  document.getElementById("app-screen").style.display="block";
+  updateBadge();
+  renderAll();
+}
+
+function updateBadge(){document.getElementById("ver-badge").textContent="v"+SD.promptVersion;}
+
+function changeApiKey(){
+  localStorage.removeItem("sfc_apikey");
+  location.reload();
+}
+
+function resetAll(){
+  if(!confirm("Réinitialiser toutes les données ?"))return;
+  SD={promptVersion:1,prompt:SYSTEM_PROMPT,analyses:[],feedbacks:[],improvements:[]};
+  saveState();
+  updateBadge();
+  document.getElementById("result-area").innerHTML="";
+  document.getElementById("main-text").value="";
+  clearImage();
+  renderAll();
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────
+function switchTab(id, btn) {
+  ["analyze","feedback","agent","dashboard"].forEach(t=>{
+    document.getElementById("tab-"+t).style.display=t===id?"block":"none";
+  });
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  if(id==="feedback")renderFeedback();
+  if(id==="agent")renderAgent();
+  if(id==="dashboard")renderDashboard();
+}
+
+// ── MODE ──────────────────────────────────────────────────────────────────
+function setMode(m) {
+  currentMode=m;
+  document.getElementById("text-input-area").style.display=m==="text"?"block":"none";
+  document.getElementById("image-input-area").style.display=m==="image"?"block":"none";
+  document.getElementById("btn-mode-text").classList.toggle("active",m==="text");
+  document.getElementById("btn-mode-image").classList.toggle("active",m==="image");
+  document.getElementById("analyze-btn").textContent=m==="image"?"Analyser l'image + Détecter IA 🤖":"Analyser le texte 📝";
+  document.getElementById("result-area").innerHTML="";
+  showError(null);
+}
+
+// ── IMAGE HANDLING ────────────────────────────────────────────────────────
+function handleImageFile(file) {
+  if(!file||!file.type.startsWith("image/")){showError("Format non supporté — PNG, JPG, WEBP.");return;}
+  imgMime=file.type;
+  document.getElementById("img-name").textContent=file.name;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    imgB64=e.target.result.split(",")[1];
+    document.getElementById("img-preview").src=e.target.result;
+    document.getElementById("drop-zone").style.display="none";
+    document.getElementById("img-preview-area").style.display="block";
+  };
+  reader.readAsDataURL(file);
+}
+function clearImage(){
+  imgB64=null;
+  document.getElementById("drop-zone").style.display="block";
+  document.getElementById("img-preview-area").style.display="none";
+  document.getElementById("img-file").value="";
+}
+
+// ── API CALL — calls /api/analyze proxy (API key hidden on server) ─────────
+function callClaude(systemPrompt, messages) {
+  return new Promise((resolve,reject)=>{
+
+    // Convert to OpenAI format for Groq
+    const openaiMessages = [{role:"system", content: systemPrompt}];
+    messages.forEach(m => {
+      if(typeof m.content === "string") {
+        openaiMessages.push({role: m.role, content: m.content});
+      } else if(Array.isArray(m.content)) {
+        const parts = m.content.map(p => {
+          if(p.type === "text") return {type:"text", text:p.text};
+          if(p.type === "image") return {type:"image_url", image_url:{url:`data:${p.source.media_type};base64,${p.source.data}`}};
+          return null;
+        }).filter(Boolean);
+        openaiMessages.push({role: m.role, content: parts});
+      }
+    });
+
+    const hasImage = messages.some(m => Array.isArray(m.content) && m.content.some(p => p.type==="image"));
+    const model = hasImage ? "meta-llama/llama-4-scout-17b-16e-instruct" : "llama-3.3-70b-versatile";
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/analyze", true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.timeout = 45000;
+    xhr.onload = () => {
+      let data; try{data=JSON.parse(xhr.responseText);}catch{reject(new Error("Réponse illisible"));return;}
+      if(xhr.status>=400){reject(new Error(data?.error?.message||`Erreur serveur ${xhr.status}`));return;}
+      if(data?.error){reject(new Error(data.error.message));return;}
+      const text = data?.choices?.[0]?.message?.content;
+      if(!text){reject(new Error("Réponse vide du modèle"));return;}
+      resolve(text);
+    };
+    xhr.onerror = ()=>reject(new Error("Erreur réseau. Vérifiez votre connexion."));
+    xhr.ontimeout = ()=>reject(new Error("Délai dépassé. Réessayez."));
+    xhr.send(JSON.stringify({model, max_tokens:1500, temperature:0.1, messages:openaiMessages}));
+  });
+}
+
+// ── JSON EXTRACTION ───────────────────────────────────────────────────────
+function extractJSON(raw){
+  const tries=[raw,raw.trim(),raw.replace(/```json|```/gi,"").trim()];
+  for(const s of tries){
+    try{return JSON.parse(s);}catch{}
+    const a=s.indexOf("{"),b=s.lastIndexOf("}");
+    if(a!==-1&&b>a){try{return JSON.parse(s.slice(a,b+1));}catch{}}
+  }
+  return null;
+}
+
+// ── NORMALIZE ─────────────────────────────────────────────────────────────
+function norm(p,isImg){
+  return {
+    type:p?.type||(isImg?"image":"texte"),
+    verdict:VERDICTS.includes(p?.verdict)?p.verdict:"NON VÉRIFIABLE",
+    score:typeof p?.score_veracite==="number"?Math.max(0,Math.min(100,p.score_veracite)):50,
+    biais:typeof p?.score_biais==="number"?Math.max(-100,Math.min(100,p.score_biais)):0,
+    orient:p?.orientation||"Neutre",
+    niveau:p?.niveau_biais||"Faible",
+    resume:p?.resume||"Analyse complétée.",
+    problemes:Array.isArray(p?.problemes)?p.problemes:[],
+    fiables:Array.isArray(p?.fiables)?p.fiables:[],
+    techniques:Array.isArray(p?.techniques)?p.techniques:[],
+    conseil:p?.conseil||"Vérifiez toujours les sources originales.",
+    ia:isImg&&p?.ia?{
+      est_ia:Boolean(p.ia.est_ia),
+      score:typeof p.ia.score==="number"?Math.max(0,Math.min(100,p.ia.score)):0,
+      generateur:p.ia.generateur||"Incertain",
+      indices:Array.isArray(p.ia.indices)?p.ia.indices:[],
+      explication:p.ia.explication||"",
+    }:null,
+  };
+}
+
+// ── ANALYSIS ──────────────────────────────────────────────────────────────
+async function runAnalysis(){
+  const isImg=currentMode==="image";
+  const text=document.getElementById("main-text").value.trim();
+  if(!isImg&&text.length<5){showError("Entrez au moins 5 caractères.");return;}
+  if(isImg&&!imgB64){showError("Sélectionnez d'abord une image.");return;}
+
+  const btn=document.getElementById("analyze-btn");
+  btn.disabled=true;btn.textContent="⟳ Analyse en cours…";
+  showError(null);document.getElementById("result-area").innerHTML="";
+
+  try{
+    const userContent=isImg
+      ?[{type:"image",source:{type:"base64",media_type:imgMime,data:imgB64}},{type:"text",text:"Analyze this image, return ONLY JSON (IMAGE structure). Check if AI-generated."}]
+      :`Analyze this text, return ONLY JSON (TEXT structure):\n\n${text}`;
+
+    let raw;
+    try{ raw=await callClaude(SD.prompt,[{role:"user",content:userContent}]); }
+    catch(e){ showError(e.message); return; }
+
+    const parsed=extractJSON(raw);
+    if(!parsed){ showError(`Format inattendu. Réponse: "${raw.slice(0,100)}"`); return; }
+
+    const safe=norm(parsed,isImg);
+    renderResult(safe);
+
+    const id=Date.now().toString();
+    SD.analyses.unshift({
+      id,date:new Date().toISOString(),type:currentMode,
+      snippet:isImg?`[Image] — ${safe.resume.slice(0,60)}`:text.slice(0,140)+(text.length>140?"…":""),
+      verdict:safe.verdict,score:safe.score,orient:safe.orient,biais:safe.biais,
+      pv:SD.promptVersion,feedback:null,
+      ia_detected:safe.ia?.est_ia||false,generator:safe.ia?.generateur||null,
+    });
+    if(SD.analyses.length>150)SD.analyses=SD.analyses.slice(0,150);
+    saveState();
+
+  } finally {
+    btn.disabled=false;
+    btn.textContent=currentMode==="image"?"Analyser l'image + Détecter IA 🤖":"Analyser le texte 📝";
+  }
+}
+
+// ── RENDER RESULT ─────────────────────────────────────────────────────────
+function biasColorFn(s){return s<-60?"#60a5fa":s<-20?"#93c5fd":s<=20?"#6ee7b7":s<=60?"#fca5a5":"#ef4444";}
+function tag(txt,color){return `<span class="tag" style="color:${color};border-color:${color}33">${txt}</span>`;}
+function scoreColor(s){return s>60?"#22c55e":s>30?"#eab308":"#ef4444";}
+
+function renderResult(r){
+  const vc=VC[r.verdict]||VC["NON VÉRIFIABLE"];
+  const ia=r.ia;
+  const gen=ia?AI_GEN[ia.generateur]||AI_GEN["Incertain"]:null;
+
+  let html=`<div class="result-section">`;
+
+  // AI card
+  if(ia){
+    const sc=ia.score>70?"#ef4444":ia.score>40?"#f97316":"#22c55e";
+    const circ=scoreCircleSVG(ia.score,sc);
+    html+=`<div class="ai-card ${ia.est_ia?"is-ai":"not-ai"}">
+      <div class="ai-header">
+        <span style="font-size:28px">${ia.est_ia?"🤖":"📷"}</span>
+        <div style="flex:1">
+          <div class="ai-label">Détection IA</div>
+          <div class="ai-verdict" style="color:${ia.est_ia?"#ef4444":"#22c55e"}">${ia.est_ia?"⚠ Image générée par IA":"✓ Photo réelle probable"}</div>
+        </div>
+        <div class="score-ring-wrap">${circ}<div class="score-ring-label">Prob. IA</div></div>
+      </div>`;
+    if(ia.est_ia&&gen){
+      html+=`<div class="gen-box" style="border:1px solid ${gen.c}33">
+        <span style="font-size:18px">${gen.icon}</span>
+        <div><div class="gen-name" style="color:${gen.c}">${ia.generateur}</div>${gen.co?`<div class="gen-co">${gen.co}</div>`:""}</div>
+      </div>`;
+    }
+    if(ia.explication)html+=`<p class="ai-expl">${ia.explication}</p>`;
+    if(ia.indices?.length){
+      html+=`<div class="indices">`;
+      const c=ia.est_ia?"#f97316":"#22c55e";
+      ia.indices.forEach(x=>{html+=tag(x,c);});
+      html+=`</div>`;
+    }
+    html+=`</div>`;
+  }
+
+  // Verdict
+  html+=`<div class="verdict-card" style="background:${vc.bg};border:1px solid ${vc.c}55">
+    <span class="verdict-icon" style="color:${vc.c}">${vc.icon}</span>
+    <div>
+      <div class="verdict-label">Verdict</div>
+      <div class="verdict-text" style="color:${vc.c}">${r.verdict}</div>
+    </div>
+    <div class="score-block">
+      <span class="score-num" style="color:${scoreColor(r.score)}">${r.score}</span><span class="score-denom">/100</span>
+      <div class="score-sub">Véracité</div>
+    </div>
+  </div>`;
+
+  // Bias
+  const pos=((r.biais+100)/200)*100;
+  const bc=biasColorFn(r.biais);
+  html+=`<div class="bias-card">
+    <div class="bias-header"><span>Biais Politique</span><span class="bias-orient" style="color:${bc}">${r.orient} · ${r.niveau}</span></div>
+    <div class="bias-labels"><span>◀ Gauche</span><span>Neutre</span><span>Droite ▶</span></div>
+    <div class="bias-track"><div class="bias-dot" style="left:${pos}%;background:${bc};box-shadow:0 0 6px ${bc}"></div></div>
+  </div>`;
+
+  // Resume
+  html+=`<div class="card"><div class="card-title" style="color:#555">Résumé</div><p>${r.resume}</p></div>`;
+
+  // Points
+  html+=`<div class="two-col">
+    <div class="card">
+      <div class="card-title" style="color:#ef4444">⚠ Problèmes</div>
+      ${r.problemes.length?r.problemes.map(p=>`<div class="list-item">— ${p}</div>`).join(""):"<span class='empty'>Aucun</span>"}
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#22c55e">✓ Fiables</div>
+      ${r.fiables.length?r.fiables.map(p=>`<div class="list-item">— ${p}</div>`).join(""):"<span class='empty'>Aucun</span>"}
+    </div>
+  </div>`;
+
+  // Techniques
+  if(r.techniques.length){
+    html+=`<div class="techniques-card">
+      <div class="card-title" style="color:#f97316;margin-bottom:6px">🎭 Techniques détectées</div>
+      <div class="indices">${r.techniques.map(t=>tag(t,"#f97316")).join("")}</div>
+    </div>`;
+  }
+
+  // Conseil
+  html+=`<div class="advice-card">
+    <div class="card-title" style="color:#22c55e;margin-bottom:4px">💡 Conseil</div>
+    <p>${r.conseil}</p>
+  </div>`;
+
+  html+=`<div class="fb-prompt">
+    <div>Cette analyse est-elle correcte ? Votre feedback améliore le système 🔁</div>
+    <button class="btn-link" onclick="switchTab('feedback',document.querySelectorAll('.nav-btn')[1])">→ Donner mon feedback</button>
+  </div>`;
+
+  html+=`</div>`;
+  document.getElementById("result-area").innerHTML=html;
+}
+
+function scoreCircleSVG(score,color){
+  const r=28,circ=2*Math.PI*r,dash=(score/100)*circ;
+  return `<svg width="70" height="70" viewBox="0 0 70 70">
+    <circle cx="35" cy="35" r="${r}" fill="none" stroke="#1e1e1e" stroke-width="5"/>
+    <circle cx="35" cy="35" r="${r}" fill="none" stroke="${color}" stroke-width="5" stroke-dasharray="${dash} ${circ}" stroke-linecap="round" transform="rotate(-90 35 35)"/>
+    <text x="35" y="40" text-anchor="middle" fill="${color}" font-size="14" font-weight="bold" font-family="monospace">${score}%</text>
+  </svg>`;
+}
+
+// ── FEEDBACK ──────────────────────────────────────────────────────────────
+function renderFeedback(){
+  const tot=SD.analyses.length, totFb=SD.feedbacks.length;
+  document.getElementById("fb-stats").textContent=`${tot} analyse(s) · ${totFb} feedback(s)`;
+  if(!tot){document.getElementById("fb-list").innerHTML=`<div class="empty-state">Aucune analyse. Commencez par ① Analyser.</div>`;return;}
+  let html="";
+  SD.analyses.forEach(a=>{
+    const vc=VC[a.verdict]||VC["NON VÉRIFIABLE"];
+    const bc=biasColorFn(a.biais);
+    const fOpen=fbOpen[a.id];
+    html+=`<div class="fb-card" id="fbc-${a.id}">
+      <div class="fb-card-row">
+        <div style="flex:1">
+          <div class="tags-row">
+            ${tag(a.type==="image"?"🖼️":"📝","#444")}
+            ${a.ia_detected?tag("🤖 "+(a.generator||"IA"),"#818cf8"):""}
+            ${tag(vc.icon+" "+a.verdict,vc.c)}
+            ${tag(a.score+"/100","#777")}
+          </div>
+          <div class="snippet">${a.snippet}</div>
+          <div class="date">${new Date(a.date).toLocaleString("fr-FR")}</div>
+        </div>
+        <div>
+          ${a.feedback
+            ?`<span style="font-size:16px">${a.feedback==="up"?"👍":"👎"}</span>`
+            :`<div class="thumb-row">
+              <button class="btn-up" onclick="giveFeedback('${a.id}','up')">👍</button>
+              <button class="btn-dn" onclick="toggleFbForm('${a.id}')">👎</button>
+            </div>`
+          }
+        </div>
+      </div>
+      ${!a.feedback&&fOpen?`<div class="fb-form">
+        <textarea id="fb-text-${a.id}" placeholder="Qu'est-ce qui est incorrect ?"></textarea>
+        <div class="fb-form-row">
+          <select id="fb-verdict-${a.id}">
+            <option value="">Verdict correct (optionnel)</option>
+            ${VERDICTS.map(v=>`<option value="${v}">${v}</option>`).join("")}
+          </select>
+          <button class="btn-send" onclick="giveFeedback('${a.id}','down')">Envoyer</button>
+        </div>
+      </div>`:""}
+    </div>`;
+  });
+  document.getElementById("fb-list").innerHTML=html;
+}
+
+function toggleFbForm(id){fbOpen[id]=!fbOpen[id];renderFeedback();}
+
+function giveFeedback(aid,thumbs){
+  const a=SD.analyses.find(x=>x.id===aid);if(!a)return;
+  const textEl=document.getElementById("fb-text-"+aid);
+  const verdictEl=document.getElementById("fb-verdict-"+aid);
+  const comment=textEl?textEl.value:(thumbs==="up"?"Correct":"Incorrect");
+  const correct_verdict=verdictEl?verdictEl.value:null;
+  SD.feedbacks.unshift({id:Date.now().toString(),date:new Date().toISOString(),aid,snippet:a.snippet,verdict:a.verdict,score:a.score,orient:a.orient,thumbs,comment,correct_verdict,pv:a.pv,ct:a.type});
+  if(SD.feedbacks.length>300)SD.feedbacks=SD.feedbacks.slice(0,300);
+  SD.analyses=SD.analyses.map(x=>x.id===aid?{...x,feedback:thumbs}:x);
+  fbOpen[aid]=false;
+  saveState();
+  renderFeedback();
+}
+
+// ── AGENT ─────────────────────────────────────────────────────────────────
+function renderAgent(){
+  const neg=SD.feedbacks.filter(f=>f.thumbs==="down").length;
+  document.getElementById("agent-stats").innerHTML=`
+    <div class="stat-card"><div class="stat-val" style="color:#ef4444">${neg}</div><div class="stat-label">Feedbacks négatifs</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#a855f7">v${SD.promptVersion}</div><div class="stat-label">Version prompt</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#22c55e">${SD.improvements.length}</div><div class="stat-label">Cycles</div></div>`;
+  document.getElementById("prompt-label").textContent=`Prompt actif — v${SD.promptVersion}`;
+  document.getElementById("prompt-text").textContent=SD.prompt;
+  let html="";
+  SD.improvements.forEach(log=>{
+    html+=`<div class="improvement-card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="color:#a855f7;font-family:monospace;font-size:12px">v${log.from} → v${log.to}</span>
+        <span style="font-size:10px;color:#333">${new Date(log.date).toLocaleString("fr-FR")}</span>
+      </div>
+      <div style="font-size:11px;color:#777;line-height:1.6;margin-bottom:6px">${log.summary}</div>
+      <div class="indices">${(log.patterns||[]).map(p=>tag(p,"#f97316")).join("")}</div>
+    </div>`;
+  });
+  document.getElementById("improvements-list").innerHTML=html;
+}
+
+async function runAgent(){
+  const negFbs=SD.feedbacks.filter(f=>f.thumbs==="down");
+  const log=document.getElementById("agent-log-text");
+  const btn=document.getElementById("agent-btn");
+  if(!negFbs.length){log.textContent="⚠ Aucun feedback négatif disponible.\nDonnez du feedback 👎 d'abord.";return;}
+  btn.disabled=true;btn.textContent="⟳ Agent en cours…";
+  log.textContent=`🔍 Analyse de ${negFbs.length} erreur(s)…\n`;
+  try{
+    log.textContent+=`🤖 Génération du nouveau prompt…\n`;
+    const meta=`Prompt engineer expert. Current prompt (v${SD.promptVersion}):\n${SD.prompt}\n\nNegative feedbacks:\n${negFbs.slice(0,15).map((f,i)=>`[${i+1}] ${f.ct} verdict:${f.verdict} comment:"${f.comment}"`).join("\n")}\n\nReturn ONLY JSON: {"improved_prompt":"...","changes_summary":"...","error_patterns":["..."]}`;
+    const raw=await callClaude("Return ONLY valid JSON, no other text.",[{role:"user",content:meta}]);
+    const imp=extractJSON(raw);
+    if(!imp)throw new Error("Réponse invalide de l'agent.");
+    const nv=SD.promptVersion+1;
+    SD.prompt=imp.improved_prompt||SD.prompt;
+    SD.promptVersion=nv;
+    SD.improvements.unshift({id:Date.now().toString(),date:new Date().toISOString(),from:nv-1,to:nv,n:negFbs.length,summary:imp.changes_summary||"",patterns:imp.error_patterns||[]});
+    saveState();updateBadge();
+    log.textContent+=`\n✅ v${nv-1} → v${nv}\n\n📋 ${imp.changes_summary}\n\n🔍 Patterns:\n${(imp.error_patterns||[]).map(e=>`  • ${e}`).join("\n")}`;
+    renderAgent();
+  }catch(e){log.textContent+=`\n❌ ${e.message}`;}
+  finally{btn.disabled=false;btn.textContent="▶ Lancer l'amélioration";}
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const tot=SD.analyses.length,totFb=SD.feedbacks.length;
+  const pos=SD.feedbacks.filter(f=>f.thumbs==="up").length;
+  const neg=SD.feedbacks.filter(f=>f.thumbs==="down").length;
+  const acc=totFb>0?Math.round((pos/totFb)*100)+"%" :"—";
+  const aiC=SD.analyses.filter(a=>a.ia_detected).length;
+  document.getElementById("dash-stats").innerHTML=`
+    <div class="stat-card"><div class="stat-val">${tot}</div><div class="stat-label">Analyses</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#22c55e">${acc}</div><div class="stat-label">Précision</div><div class="stat-sub">${pos}👍 ${neg}👎</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#818cf8">${aiC}</div><div class="stat-label">Images IA</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:#a855f7">v${SD.promptVersion}</div><div class="stat-label">Prompt</div></div>`;
+  const vCounts=SD.analyses.reduce((acc,a)=>{acc[a.verdict]=(acc[a.verdict]||0)+1;return acc;},{});
+  let vh=`<div style="font-size:10px;color:#555;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px">Distribution des verdicts</div>`;
+  VERDICTS.forEach(v=>{
+    const count=vCounts[v]||0,pct=tot>0?(count/tot)*100:0,vc=VC[v];
+    vh+=`<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:11px;color:${vc.c}">${vc.icon} ${v}</span>
+        <span style="font-size:11px;color:#444;font-family:monospace">${count} (${Math.round(pct)}%)</span>
+      </div>
+      <div class="verdict-bar"><div class="verdict-fill" style="width:${pct}%;background:${vc.c}"></div></div>
+    </div>`;
+  });
+  document.getElementById("dash-verdicts").innerHTML=vh;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function showError(msg){
+  const box=document.getElementById("error-box");
+  if(!msg){box.style.display="none";box.innerHTML="";return;}
+  const isKeyErr = msg.toLowerCase().includes("api-key")||msg.toLowerCase().includes("api key")||msg.toLowerCase().includes("invalid")||msg.toLowerCase().includes("401")||msg.toLowerCase().includes("authentication");
+  const keyLink = isKeyErr ? `<div style="margin-top:8px"><button onclick="changeApiKey()" style="background:#1a0a2e;border:1px solid #818cf8;border-radius:3px;color:#818cf8;font-size:12px;padding:6px 14px;cursor:pointer">🔑 Cliquez ici pour changer votre clé API</button></div>` : "";
+  box.style.display="block";
+  box.innerHTML=`⚠ ${msg}${keyLink}`;
+}
+
+function renderAll(){renderFeedback&&typeof renderFeedback==="function"&&null;}
+
+// ── START ─────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>
